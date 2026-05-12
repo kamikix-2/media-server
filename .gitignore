@@ -1,0 +1,12 @@
+# Secretos y configuracion local - NUNCA subir al repositorio
+docker/.env
+docker/rclone/rclone.conf
+
+# Carpeta de configuracion generada por SWAG (contiene certs y claves privadas)
+docker/swag/
+
+# Carpeta de configuracion de WireGuard (contiene claves VPN)
+docker/config/
+
+# Datos de Docker volumes montados localmente
+*.log

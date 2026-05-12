@@ -1,0 +1,242 @@
+
+services:
+
+  # ----------------------------------------------------------
+  #  swag (SSL + reverse proxy)
+  #  Emite/renueva certificados Let's Encrypt gratis
+  #  usando validacion DNS con DuckDNS
+  # ----------------------------------------------------------
+  swag:
+    image: lscr.io/linuxserver/swag:latest
+    container_name: swag
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ}
+      - URL=duckdns.org
+      - SUBDOMAINS=${SWAG_SUBDOMAIN:-kamikix}
+      - VALIDATION=duckdns
+      - DUCKDNSTOKEN=${DUCKDNS_TOKEN}
+      - EMAIL=${SWAG_EMAIL}
+      - ONLY_SUBDOMAINS=true
+      - STAGING=false
+    volumes:
+      - ./swag:/config
+
+  # ----------------------------------------------------------
+  #  rclone-sync
+  #  Sincroniza Pelis y Calibre Biblioteca con OneDrive
+  #  usando bisync (bidireccional). Replica la logica de los
+  #  scripts .bat existentes en c:/media-server/scripts
+  # ----------------------------------------------------------
+  rclone-sync:
+    image: rclone/rclone:latest
+    container_name: rclone-sync
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/scripts/sync.sh"]
+    user: "${PUID:-1000}:${PGID:-1000}"
+    volumes:
+      # Config de rclone (rclone.conf con credenciales OneDrive)
+      - ${RCLONE_CONFIG_DIR}:/config/rclone
+      # Script de sincronizacion
+      - ./rclone:/scripts:ro
+      # Carpetas a sincronizar
+      - ${PELIS_DIR}:/data/pelis
+      - ${CALIBRE_DIR}:/data/calibre
+      - ${MUSICA_DIR}:/data/musica
+      - ${FOTOS_DIR}:/data/fotos
+      # Estado persistente de bisync (flags de primera ejecucion + cache)
+      - rclone-bisync-state:/bisync-state
+    environment:
+      - TZ=${TZ}
+      - SYNC_INTERVAL=${SYNC_INTERVAL:-3600}
+      - HOME=/bisync-state
+    # Evita que el contenedor sature la red al arrancar
+    # con resync de archivos muy grandes
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ----------------------------------------------------------
+  #  jellyfin
+  #  Servidor multimedia: peliculas, musica, fotos, etc.
+  #  Interfaz web: http://localhost:8096
+  # ----------------------------------------------------------
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    restart: unless-stopped
+    ports:
+      - "${JELLYFIN_HTTP_PORT:-8096}:8096"
+      - "${JELLYFIN_HTTPS_PORT:-8920}:8920"
+    volumes:
+      - jellyfin-config:/config
+      - jellyfin-cache:/cache
+      # Bibliotecas de medios (solo lectura)
+      - ${PELIS_DIR}:/media/Pelis
+      - ${MUSICA_DIR}:/media/Musica
+      - ${FOTOS_DIR}:/media/Fotos
+    devices:
+      # Aceleracion hardware AMD via VA-API
+      - /dev/dri:/dev/dri
+    environment:
+      - TZ=${TZ}
+      # Descomenta si quieres habilitar DLNA/autodiscovery en la red local:
+      # JELLYFIN_PublishedServerUrl=http://<IP_DEL_HOST>:8096
+
+  # ----------------------------------------------------------
+  #  calibre-web
+  #  Interfaz web para navegar y descargar la biblioteca Calibre
+  #  - Puerto 8083: interfaz web (http://localhost:8083)
+  #  Usuario por defecto: admin / admin123
+  #  Apunta la biblioteca a /books en la configuracion inicial
+  # ----------------------------------------------------------
+
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre-web
+    restart: unless-stopped
+    ports:
+      - "${CALIBRE_WEB_PORT:-8083}:8083"
+    volumes:
+      - calibre-web-config:/config
+      - ${CALIBRE_DIR}:/books
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ}
+      # Instala kepubify para conversion a Kobo ePub (opcional)
+      - DOCKER_MODS=linuxserver/mods:universal-calibre
+
+# ----------------------------------------------------------
+  #  immich-server
+  #  Gestor de fotos y videos (alternativa a Google Photos)
+  #  Interfaz web: http://localhost:2283
+  #  Primer usuario en registrarse sera el administrador
+  # ----------------------------------------------------------
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:release
+    container_name: immich-server
+    restart: unless-stopped
+    depends_on:
+      - immich-redis
+      - immich-postgres
+    ports:
+      - "${IMMICH_PORT:-2283}:2283"
+    volumes:
+      - /opt/immich/upload:/usr/src/app/upload
+      - ${FOTOS_DIR}:/fotos:ro
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      - DB_HOSTNAME=immich-postgres
+      - DB_USERNAME=immich
+      - DB_PASSWORD=${IMMICH_DB_PASSWORD:-immich_password}
+      - DB_DATABASE_NAME=immich
+      - REDIS_HOSTNAME=immich-redis
+      - TZ=${TZ}
+      - IMMICH_EXTERNAL_PATH=/fotos
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    container_name: immich-machine-learning
+    restart: unless-stopped
+    volumes:
+      - immich-model-cache:/cache
+    environment:
+      - TZ=${TZ}
+
+  immich-redis:
+    image: redis:7-alpine
+    container_name: immich-redis
+    restart: unless-stopped
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  immich-postgres:
+    image: tensorchord/pgvecto-rs:pg14-v0.2.0
+    container_name: immich-postgres
+    restart: unless-stopped
+    volumes:
+      - immich-postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=immich
+      - POSTGRES_PASSWORD=${IMMICH_DB_PASSWORD:-immich_password}
+      - POSTGRES_DB=immich
+      - POSTGRES_INITDB_ARGS=--data-checksums
+    healthcheck:
+      test: pg_isready --dbname=immich --username=immich
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  wireguard:
+    image: linuxserver/wireguard
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ}
+      - SERVERURL=${WIREGUARD_SERVERURL:-kamikix.duckdns.org}
+      - SERVERPORT=${WIREGUARD_SERVERPORT:-51820}
+      - PEERS=${WIREGUARD_PEERS:-1}
+      - PEERDNS=${WIREGUARD_PEERDNS:-1.1.1.1}
+      - ALLOWEDIPS=${WIREGUARD_ALLOWEDIPS:-0.0.0.0/0}
+    volumes:
+      - ./config:/config
+      - /lib/modules:/lib/modules
+    ports:
+      - 51820:51820/udp
+      - 6901:6901
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+
+  navegador:
+    image: kasmweb/chrome:1.16.0
+    container_name: navegador_vpn
+    depends_on:
+      - wireguard
+    network_mode: "service:wireguard"
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - VNC_PW=A.46575821a
+      - KASM_USER=kasm_user
+      - DISPLAY_WIDTH=1280
+      - DISPLAY_HEIGHT=720
+      - MAX_FRAME_RATE=24
+    volumes:
+      - chrome-profile:/home/kasm-user      
+    shm_size: "512m"
+    restart: unless-stopped
+
+# ============================================================
+#  Volumenes nombrados (datos persistentes entre reinicios)
+# ============================================================
+volumes:
+  rclone-bisync-state:
+    driver: local
+  jellyfin-config:
+    driver: local
+  jellyfin-cache:
+    driver: local
+  calibre-web-config:
+    driver: local
+  immich-model-cache:
+    driver: local
+  immich-postgres-data:
+    driver: local
+  chrome-profile:
+    driver: local
