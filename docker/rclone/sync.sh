@@ -8,6 +8,13 @@ INTERVAL=${SYNC_INTERVAL:-3600}
 CACHE_DIR=/bisync-state
 RCLONE_CONF=/config/rclone/rclone.conf
 
+clear_bisync_locks() {
+    lock_dir="$CACHE_DIR/.cache/rclone/bisync"
+    if [ -d "$lock_dir" ]; then
+        find "$lock_dir" -maxdepth 1 -type f -name '*.lck' -delete
+    fi
+}
+
 # ---- Funcion principal de sincronizacion -------------------
 run_bisync() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ===== Iniciando sincronizacion ====="
@@ -16,6 +23,7 @@ run_bisync() {
     FLAG_PELIS="$CACHE_DIR/pelis_initialized.flag"
     if [ ! -f "$FLAG_PELIS" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Pelis] Primera ejecucion - resync completo..."
+        clear_bisync_locks
         rclone bisync /data/pelis "onedrive:/NUBE/Pelis" \
             --resync \
             --cache-dir "$CACHE_DIR" \
@@ -25,6 +33,7 @@ run_bisync() {
         || echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Pelis] ERROR en resync inicial"
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Pelis] Ejecutando bisync normal..."
+        clear_bisync_locks
         rclone bisync /data/pelis "onedrive:/NUBE/Pelis" \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
@@ -46,6 +55,7 @@ run_bisync() {
     FLAG_MUSICA="$CACHE_DIR/musica_initialized.flag"
     if [ ! -f "$FLAG_MUSICA" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Musica] Primera ejecucion - resync completo..."
+        clear_bisync_locks
         rclone bisync /data/musica "onedrive:/NUBE/Musica" \
             --resync \
             --cache-dir "$CACHE_DIR" \
@@ -55,6 +65,7 @@ run_bisync() {
         || echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Musica] ERROR en resync inicial"
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Musica] Ejecutando bisync normal..."
+        clear_bisync_locks
         rclone bisync /data/musica "onedrive:/NUBE/Musica" \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
@@ -76,6 +87,7 @@ run_bisync() {
     FLAG_FOTOS="$CACHE_DIR/fotos_initialized.flag"
     if [ ! -f "$FLAG_FOTOS" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos] Primera ejecucion - resync completo..."
+        clear_bisync_locks
         rclone bisync /data/fotos "onedrive:/Imágenes" \
             --resync \
             --cache-dir "$CACHE_DIR" \
@@ -85,6 +97,7 @@ run_bisync() {
         || echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos] ERROR en resync inicial"
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos] Ejecutando bisync normal..."
+        clear_bisync_locks
         rclone bisync /data/fotos "onedrive:/Imágenes" \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
@@ -107,6 +120,7 @@ run_bisync() {
     FLAG_CALIBRE="$CACHE_DIR/calibre_initialized.flag"
     if [ ! -f "$FLAG_CALIBRE" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Calibre] Primera ejecucion - resync completo..."
+        clear_bisync_locks
         rclone bisync /data/calibre "onedrive:/NUBE/Calibre Biblioteca" \
             --resync \
             --cache-dir "$CACHE_DIR" \
@@ -116,6 +130,7 @@ run_bisync() {
         || echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Calibre] ERROR en resync inicial"
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Calibre] Ejecutando bisync normal..."
+        clear_bisync_locks
         rclone bisync /data/calibre "onedrive:/NUBE/Calibre Biblioteca" \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
