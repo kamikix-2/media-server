@@ -222,7 +222,8 @@ services:
       - DISPLAY_HEIGHT=720
       - MAX_FRAME_RATE=24
     volumes:
-      - chrome-profile:/home/kasm-user      
+      - ./chrome-profile:/home/kasm-user/.config/google-chrome
+      - ./chrome-downloads:/home/kasm-user/Downloads
     shm_size: "512m"
     restart: unless-stopped
 
@@ -241,6 +242,4 @@ volumes:
   immich-model-cache:
     driver: local
   immich-postgres-data:
-    driver: local
-  chrome-profile:
     driver: local
