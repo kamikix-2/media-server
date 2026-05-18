@@ -29,6 +29,8 @@ services:
       - DNSPLUGIN=${SWAG_DNSPLUGIN-duckdns}
     volumes:
       - ./swag:/config
+      # proxy-confs versionados en git (sobreescribe la subcarpeta del volumen)
+      - ./swag/nginx/proxy-confs:/config/nginx/proxy-confs
     dns:
       - 8.8.8.8
       - 8.8.4.4

@@ -2,12 +2,14 @@
 docker/.env
 docker/rclone/rclone.conf
 
-# Carpeta de configuracion generada por SWAG (contiene certs y claves privadas)
-docker/swag/
-# Pero si sincronizar las configuraciones nginx personalizadas
-!docker/swag/nginx/
-!docker/swag/nginx/proxy-confs/
-!docker/swag/nginx/proxy-confs/*.conf
+# Datos generados por SWAG en tiempo de ejecucion (certificados, claves, logs)
+docker/swag/etc/
+docker/swag/keys/
+docker/swag/log/
+docker/swag/nginx/cache/
+docker/swag/nginx/logs/
+docker/swag/.donotedit
+# Los proxy-confs y demas configuracion nginx SI se sincronizan con git
 
 # Carpeta de configuracion de WireGuard (contiene claves VPN)
 docker/config/
