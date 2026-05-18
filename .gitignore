@@ -14,5 +14,11 @@ docker/swag/.donotedit
 # Carpeta de configuracion de WireGuard (contiene claves VPN)
 docker/config/
 
+# Bibliotecas multimedia locales (no versionar)
+pelis/
+musica/
+fotos/
+calibre-biblioteca/
+
 # Datos de Docker volumes montados localmente
 *.log
