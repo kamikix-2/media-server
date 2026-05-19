@@ -220,8 +220,8 @@ services:
       - PGID=${PGID:-1000}
       - VNC_PW=A.46575821a
       - KASM_USER=kasm_user
-      - DISPLAY_WIDTH=1280
-      - DISPLAY_HEIGHT=720
+      #- DISPLAY_WIDTH=1280
+      #- DISPLAY_HEIGHT=720
       - MAX_FRAME_RATE=24
     volumes:
       - ./chrome-profile:/home/kasm-user/.config/google-chrome
