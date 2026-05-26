@@ -222,6 +222,11 @@ services:
       - VNC_RESOLUTION=2560x1440
       - VNC_COL_DEPTH=24
       - MAX_FRAME_RATE=24
+      - KASM_SVC_PRINTER=0       # deshabilita relay impresora (evita timeout 0x01)
+      - KASM_SVC_AUDIO=0         # deshabilita audio (no aplica en este uso)
+      - KASM_SVC_UPLOADS=0       # deshabilita servidor de subidas
+      - KASM_SVC_GAMEPAD=0       # deshabilita gamepad
+      - KASM_SVC_WEBCAM=0        # deshabilita webcam
     volumes:
       - ./chrome-profile:/home/kasm-user/.config/google-chrome
       - ./chrome-downloads:/home/kasm-user/Downloads
