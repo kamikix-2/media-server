@@ -219,7 +219,6 @@ services:
       - PGID=${PGID:-1000}
       - VNC_PW=A.46575821a
       - KASM_USER=kasm_user
-      - XDG_CONFIG_DIRS=/etc/xdg:/etc/xdg/xfce4
       - VNC_RESOLUTION=2560x1440
       - VNC_COL_DEPTH=24
       - MAX_FRAME_RATE=24
@@ -227,6 +226,8 @@ services:
       - ./chrome-profile:/home/kasm-user/.config/google-chrome
       - ./chrome-downloads:/home/kasm-user/Downloads
     shm_size: "512m"
+    security_opt:
+      - seccomp:unconfined
     restart: unless-stopped
 
 # ============================================================
