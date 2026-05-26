@@ -209,7 +209,7 @@ services:
     restart: unless-stopped
 
   navegador:
-    image: kasmweb/chrome:1.16.0
+    image: kasmweb/chrome:1.18.0
     container_name: navegador_vpn
     depends_on:
       - wireguard
