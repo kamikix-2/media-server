@@ -219,9 +219,9 @@ services:
       - PGID=${PGID:-1000}
       - VNC_PW=A.46575821a
       - KASM_USER=kasm_user
-      - VNC_RESOLUTION=2560x1440
+      - VNC_RESOLUTION=1280x720   # era 2560x1440 — reduce carga ~75%
+      - MAX_FRAME_RATE=15          # era 24
       - VNC_COL_DEPTH=24
-      - MAX_FRAME_RATE=24
       - KASM_SVC_PRINTER=0       # deshabilita relay impresora (evita timeout 0x01)
       - KASM_SVC_AUDIO=0         # deshabilita audio (no aplica en este uso)
       - KASM_SVC_UPLOADS=0       # deshabilita servidor de subidas
