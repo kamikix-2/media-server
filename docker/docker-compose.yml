@@ -221,7 +221,7 @@ services:
       - NEKO_PASSWORD_ADMIN=${NEKO_ADMIN_PASSWORD:-admin}
       - NEKO_BIND=:3000
       - NEKO_EPR=52000-52100          # rango UDP para WebRTC
-      - NEKO_NAT1TO1=${WIREGUARD_SERVERURL:-kamikix.duckdns.org}
+      - NEKO_NAT1TO1=${PUBLIC_IP}     # IP publica del servidor (actualizar si cambia)
       - NEKO_ICELITE=1               # simplifica traversal NAT
     shm_size: "512m"
     security_opt:
