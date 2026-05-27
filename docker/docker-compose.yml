@@ -203,33 +203,25 @@ services:
       - /lib/modules:/lib/modules
     ports:
       - 51820:51820/udp
-      - 6901:6901
+      - 8080:8080              # neko HTTP
+      - 52000-52100:52000-52100/udp  # neko WebRTC
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
     restart: unless-stopped
 
   navegador:
-    image: kasmweb/chrome:latest   # era 1.18.0
+    image: m1k1o/neko:firefox
     container_name: navegador_vpn
     depends_on:
       - wireguard
     network_mode: "service:wireguard"
     environment:
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-1000}
-      - VNC_PW=A.46575821a
-      - KASM_USER=kasm_user
-      - VNC_RESOLUTION=1280x720   # era 2560x1440 — reduce carga ~75%
-      - MAX_FRAME_RATE=15          # era 24
-      - VNC_COL_DEPTH=24
-      - KASM_SVC_PRINTER=0       # deshabilita relay impresora (evita timeout 0x01)
-      - KASM_SVC_AUDIO=0         # deshabilita audio (no aplica en este uso)
-      - KASM_SVC_UPLOADS=0       # deshabilita servidor de subidas
-      - KASM_SVC_GAMEPAD=0       # deshabilita gamepad
-      - KASM_SVC_WEBCAM=0        # deshabilita webcam
-    volumes:
-      - ./chrome-profile:/home/kasm-user/.config/google-chrome
-      - ./chrome-downloads:/home/kasm-user/Downloads
+      - NEKO_SCREEN=1280x720@30
+      - NEKO_PASSWORD=A.46575821a
+      - NEKO_PASSWORD_ADMIN=${NEKO_ADMIN_PASSWORD:-admin}
+      - NEKO_EPR=52000-52100          # rango UDP para WebRTC
+      - NEKO_NAT1TO1=${WIREGUARD_SERVERURL:-kamikix.duckdns.org}
+      - NEKO_ICELITE=1               # simplifica traversal NAT
     shm_size: "512m"
     security_opt:
       - seccomp:unconfined
