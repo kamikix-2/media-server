@@ -222,7 +222,7 @@ services:
       - NEKO_BIND=:3000
       - NEKO_EPR=52000-52100          # rango UDP para WebRTC
       - NEKO_NAT1TO1=${PUBLIC_IP}     # IP publica del servidor (actualizar si cambia)
-      - NEKO_ICELITE=1               # simplifica traversal NAT
+      # NEKO_ICELITE=1 desactivado: sin ICE lite, neko descubre candidatos locales tambien
     shm_size: "512m"
     security_opt:
       - seccomp:unconfined
