@@ -1,0 +1,16 @@
+[Unit]
+Description=Media Server Docker Compose Stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/media-server
+ExecStart=/usr/bin/docker compose -f /opt/media-server/docker/docker-compose.yml --env-file /opt/media-server/docker/.env up -d
+ExecStop=/usr/bin/docker compose -f /opt/media-server/docker/docker-compose.yml --env-file /opt/media-server/docker/.env stop
+RemainAfterExit=yes
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

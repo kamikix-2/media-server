@@ -120,6 +120,44 @@ docker compose -f docker/docker-compose.yml --env-file docker/.env ps
 docker compose -f docker/docker-compose.yml --env-file docker/.env logs -f --tail=100
 ```
 
+## Arranque automatico al reiniciar (systemd)
+
+Para que Debian ejecute `docker compose up -d` automaticamente al iniciar:
+
+1. Copiar la unidad incluida en el repo:
+
+```bash
+sudo cp /opt/media-server/docker/systemd/media-server.service /etc/systemd/system/media-server.service
+```
+
+2. Recargar `systemd`, habilitar y arrancar:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable media-server.service
+sudo systemctl start media-server.service
+```
+
+3. Verificar estado:
+
+```bash
+sudo systemctl status media-server.service
+docker compose -f /opt/media-server/docker/docker-compose.yml --env-file /opt/media-server/docker/.env ps
+```
+
+4. Probar reinicio del host:
+
+```bash
+sudo reboot
+```
+
+5. Al volver, comprobar que todo levanto:
+
+```bash
+sudo systemctl status media-server.service
+docker compose -f /opt/media-server/docker/docker-compose.yml --env-file /opt/media-server/docker/.env ps
+```
+
 ## Endpoints y puertos
 
 Locales:
