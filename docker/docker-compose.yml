@@ -215,6 +215,8 @@ services:
     depends_on:
       - wireguard
     network_mode: "service:wireguard"
+    volumes:
+      - ./neko-downloads:/home/neko/Downloads
     environment:
       - NEKO_SCREEN=1280x720@30
       - NEKO_PASSWORD=A.46575821a
