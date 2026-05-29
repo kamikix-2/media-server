@@ -6,6 +6,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+User=kamikix
+Group=kamikix
 WorkingDirectory=/opt/media-server
 ExecStart=/usr/bin/docker compose -f /opt/media-server/docker/docker-compose.yml --env-file /opt/media-server/docker/.env up -d
 ExecStop=/usr/bin/docker compose -f /opt/media-server/docker/docker-compose.yml --env-file /opt/media-server/docker/.env stop

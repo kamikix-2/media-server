@@ -124,6 +124,15 @@ docker compose -f docker/docker-compose.yml --env-file docker/.env logs -f --tai
 
 Para que Debian ejecute `docker compose up -d` automaticamente al iniciar:
 
+0. Asegurar que el usuario `kamikix` existe, tiene acceso a Docker y permiso sobre el proyecto:
+
+```bash
+sudo usermod -aG docker kamikix
+sudo chown -R kamikix:kamikix /opt/media-server
+```
+
+La unidad incluida en este repo ya esta configurada para ejecutarse con `User=kamikix`.
+
 1. Copiar la unidad incluida en el repo:
 
 ```bash
