@@ -217,6 +217,7 @@ services:
     network_mode: "service:wireguard"
     volumes:
       - ./neko-downloads:/home/neko/Downloads
+      - ./neko-profile:/home/neko/.mozilla/firefox/profile.default
     environment:
       - NEKO_SCREEN=1280x720@30
       - NEKO_PASSWORD=A.46575821a
