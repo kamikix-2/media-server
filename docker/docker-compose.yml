@@ -56,6 +56,7 @@ services:
       - ${CALIBRE_DIR}:/data/calibre
       - ${MUSICA_DIR}:/data/musica
       - ${FOTOS_DIR}:/data/fotos
+      - ${FOTOS_2_DIR}:/data/fotos2
       # Estado persistente de bisync (flags de primera ejecucion + cache)
       - rclone-bisync-state:/bisync-state
     environment:
@@ -138,6 +139,7 @@ services:
     volumes:
       - /opt/immich/upload:/usr/src/app/upload
       - ${FOTOS_DIR}:/fotos:ro
+      - ${FOTOS_2_DIR}:/fotos2:ro
       - /etc/localtime:/etc/localtime:ro
     environment:
       - DB_HOSTNAME=immich-postgres

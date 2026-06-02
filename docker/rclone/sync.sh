@@ -116,6 +116,39 @@ run_bisync() {
     # --- FIN FOTOS --
 
 
+    # --- FOTOS 2 (ONEDRIVE2) ---
+    FLAG_FOTOS2="$CACHE_DIR/fotos2_initialized.flag"
+    if [ ! -f "$FLAG_FOTOS2" ]; then
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] Primera ejecucion - resync completo..."
+        clear_bisync_locks
+        rclone bisync /data/fotos2 "onedrive2:/fotos" \
+            --resync \
+            --cache-dir "$CACHE_DIR" \
+            --config "$RCLONE_CONF" \
+            --verbose \
+        && touch "$FLAG_FOTOS2" \
+        || echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] ERROR en resync inicial"
+    else
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] Ejecutando bisync normal..."
+        clear_bisync_locks
+        rclone bisync /data/fotos2 "onedrive2:/fotos" \
+            --cache-dir "$CACHE_DIR" \
+            --config "$RCLONE_CONF" \
+            --verbose \
+        || {
+            echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] Error - ejecutando resync de recuperacion..."
+            rm -f "$FLAG_FOTOS2"
+            rclone bisync /data/fotos2 "onedrive2:/fotos" \
+                --resync \
+                --cache-dir "$CACHE_DIR" \
+                --config "$RCLONE_CONF" \
+                --verbose \
+            && touch "$FLAG_FOTOS2"
+        }
+    fi
+    # --- FIN FOTOS 2 --
+
+
     # --- CALIBRE BIBLIOTECA ---
     FLAG_CALIBRE="$CACHE_DIR/calibre_initialized.flag"
     if [ ! -f "$FLAG_CALIBRE" ]; then
