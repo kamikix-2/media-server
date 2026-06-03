@@ -138,8 +138,8 @@ services:
       - "${IMMICH_PORT:-2283}:2283"
     volumes:
       - /opt/immich/upload:/usr/src/app/upload
-      - ${FOTOS_DIR}:/fotos:ro
-      - ${FOTOS_2_DIR}:/fotos2:ro
+      - ${FOTOS_DIR}:/fotos
+      - ${FOTOS_2_DIR}:/fotos2
       - /etc/localtime:/etc/localtime:ro
     environment:
       - DB_HOSTNAME=immich-postgres
