@@ -13,23 +13,22 @@ services:
       - TZ=${TZ}
       - DUCKDNS_DOMAINS=${DUCKDNS_DOMAINS}
       - DUCKDNS_TOKEN=${DUCKDNS_TOKEN}
-      - DUCKDNS_UPDATE_INTERVAL=${DUCKDNS_UPDATE_INTERVAL:-300}
     command:
       - /bin/sh
       - -c
       - |
         set -eu
-        while true; do
-          IP="$(curl -4s https://api.ipify.org)"
-          RESP="$(curl -4s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAINS}&token=${DUCKDNS_TOKEN}&ip=${IP}")"
-          if [ "$RESP" = "OK" ]; then
-            date +%s > /tmp/last_ok
-            echo "DuckDNS actualizado correctamente: ${IP}"
-          else
-            echo "DuckDNS devolvio respuesta inesperada: ${RESP}" >&2
-          fi
-          sleep "${DUCKDNS_UPDATE_INTERVAL}"
-        done
+        IP="$(curl -4s https://api.ipify.org)"
+        RESP="$(curl -4s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAINS}&token=${DUCKDNS_TOKEN}&ip=${IP}")"
+        if [ "$RESP" = "OK" ]; then
+          date +%s > /tmp/last_ok
+          echo "DuckDNS actualizado correctamente al arranque: ${IP}"
+        else
+          echo "DuckDNS devolvio respuesta inesperada: ${RESP}" >&2
+          exit 1
+        fi
+        echo "duckdns-updater en modo inactivo"
+        tail -f /dev/null
     healthcheck:
       test: ["CMD-SHELL", "test -f /tmp/last_ok"]
       interval: 15s

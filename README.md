@@ -263,14 +263,14 @@ sudo chown -R $USER:$USER /opt/media-server
 
 El stack incluye el servicio `duckdns-updater` en [docker/docker-compose.yml](docker/docker-compose.yml), que:
 - Detecta la IP publica del host (`api.ipify.org`).
-- Actualiza DuckDNS con tu token.
-- Marca estado `healthy` tras la primera actualizacion correcta.
+- Actualiza DuckDNS con tu token una sola vez al arrancar.
+- Marca estado `healthy` tras esa actualizacion correcta.
+- Queda en modo inactivo (sin bucle de actualizacion periodica).
 - Hace que `swag` espere a esa primera actualizacion antes de arrancar.
 
 Variables relacionadas en [docker/.env](docker/.env):
 - `DUCKDNS_DOMAINS`: subdominios DuckDNS separados por coma (sin `.duckdns.org`).
 - `DUCKDNS_TOKEN`: token de DuckDNS.
-- `DUCKDNS_UPDATE_INTERVAL`: segundos entre actualizaciones.
 
 Levantar o recrear servicios:
 
