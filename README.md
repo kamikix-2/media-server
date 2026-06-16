@@ -258,6 +258,54 @@ sudo chown -R $USER:$USER /opt/media-server
 
 - SWAG no emite certificados:
   - Revisar `DUCKDNS_TOKEN`, `SWAG_SUBDOMAIN`, `SWAG_VALIDATION` y apertura de puertos 80/443.
+
+## DuckDNS: revisar y actualizar IP automatica
+
+El stack incluye el servicio `duckdns-updater` en [docker/docker-compose.yml](docker/docker-compose.yml), que:
+- Detecta la IP publica del host (`api.ipify.org`).
+- Actualiza DuckDNS con tu token.
+- Marca estado `healthy` tras la primera actualizacion correcta.
+- Hace que `swag` espere a esa primera actualizacion antes de arrancar.
+
+Variables relacionadas en [docker/.env](docker/.env):
+- `DUCKDNS_DOMAINS`: subdominios DuckDNS separados por coma (sin `.duckdns.org`).
+- `DUCKDNS_TOKEN`: token de DuckDNS.
+- `DUCKDNS_UPDATE_INTERVAL`: segundos entre actualizaciones.
+
+Levantar o recrear servicios:
+
+```bash
+docker compose -f docker/docker-compose.yml --env-file docker/.env up -d duckdns-updater swag
+```
+
+Ver estado del updater:
+
+```bash
+docker compose -f docker/docker-compose.yml --env-file docker/.env ps duckdns-updater swag
+```
+
+Ver logs de actualizacion:
+
+```bash
+docker compose -f docker/docker-compose.yml --env-file docker/.env logs -f --tail=50 duckdns-updater
+```
+
+Comparar IP publica actual vs DNS de DuckDNS:
+
+```bash
+PUBLIC_IP=$(curl -s https://api.ipify.org)
+DNS_IP=$(getent ahostsv4 kamikix.duckdns.org | awk 'NR==1{print $1}')
+echo "PUBLIC_IP=$PUBLIC_IP"
+echo "DNS_IP=$DNS_IP"
+```
+
+Forzar una actualizacion manual puntual (sin esperar al intervalo):
+
+```bash
+curl "https://www.duckdns.org/update?domains=<subdominios>&token=<token>&ip=$(curl -s https://api.ipify.org)"
+```
+
+Si DuckDNS responde `OK`, la actualizacion fue aceptada.
   - Ver logs de `swag`.
 
 - rclone no sincroniza:

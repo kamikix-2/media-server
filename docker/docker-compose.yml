@@ -1,6 +1,43 @@
 services:
 
   # ----------------------------------------------------------
+  #  duckdns-updater
+  #  Actualiza la IP publica en DuckDNS de forma periodica
+  #  para que los subdominios siempre apunten al host correcto
+  # ----------------------------------------------------------
+  duckdns-updater:
+    image: curlimages/curl:8.12.1
+    container_name: duckdns-updater
+    restart: unless-stopped
+    environment:
+      - TZ=${TZ}
+      - DUCKDNS_DOMAINS=${DUCKDNS_DOMAINS}
+      - DUCKDNS_TOKEN=${DUCKDNS_TOKEN}
+      - DUCKDNS_UPDATE_INTERVAL=${DUCKDNS_UPDATE_INTERVAL:-300}
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        while true; do
+          IP="$(curl -4s https://api.ipify.org)"
+          RESP="$(curl -4s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAINS}&token=${DUCKDNS_TOKEN}&ip=${IP}")"
+          if [ "$RESP" = "OK" ]; then
+            date +%s > /tmp/last_ok
+            echo "DuckDNS actualizado correctamente: ${IP}"
+          else
+            echo "DuckDNS devolvio respuesta inesperada: ${RESP}" >&2
+          fi
+          sleep "${DUCKDNS_UPDATE_INTERVAL}"
+        done
+    healthcheck:
+      test: ["CMD-SHELL", "test -f /tmp/last_ok"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  # ----------------------------------------------------------
   #  swag (SSL + reverse proxy)
   #  Emite/renueva certificados Let's Encrypt gratis
   #  usando validacion DNS con DuckDNS
@@ -9,6 +46,9 @@ services:
     image: lscr.io/linuxserver/swag:latest
     container_name: swag
     restart: unless-stopped
+    depends_on:
+      duckdns-updater:
+        condition: service_healthy
     cap_add:
       - NET_ADMIN
     ports:
