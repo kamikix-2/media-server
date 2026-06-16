@@ -2,8 +2,8 @@ services:
 
   # ----------------------------------------------------------
   #  duckdns-updater
-  #  Actualiza la IP publica en DuckDNS de forma periodica
-  #  para que los subdominios siempre apunten al host correcto
+  #  Actualiza la IP publica en DuckDNS una vez al arranque
+  #  y luego queda inactivo para no hacer updates periodicos
   # ----------------------------------------------------------
   duckdns-updater:
     image: curlimages/curl:8.12.1
@@ -11,20 +11,26 @@ services:
     restart: unless-stopped
     environment:
       - TZ=${TZ}
-      - DUCKDNS_DOMAINS=${DUCKDNS_DOMAINS}
+      - SWAG_SUBDOMAIN=${SWAG_SUBDOMAIN:-}
+      - DUCKDNS_DOMAINS=${DUCKDNS_DOMAINS:-}
       - DUCKDNS_TOKEN=${DUCKDNS_TOKEN}
     command:
       - /bin/sh
       - -c
       - |
         set -eu
+        DOMAINS="$${DUCKDNS_DOMAINS:-$${SWAG_SUBDOMAIN:-}}"
+        if [ -z "$${DOMAINS}" ]; then
+          echo "Falta DUCKDNS_DOMAINS y SWAG_SUBDOMAIN; no se puede actualizar DuckDNS" >&2
+          exit 1
+        fi
         IP="$(curl -4s https://api.ipify.org)"
-        RESP="$(curl -4s "https://www.duckdns.org/update?domains=${DUCKDNS_DOMAINS}&token=${DUCKDNS_TOKEN}&ip=${IP}")"
-        if [ "$RESP" = "OK" ]; then
+        RESP="$(curl -4s "https://www.duckdns.org/update?domains=$${DOMAINS}&token=$${DUCKDNS_TOKEN}&ip=$${IP}")"
+        if [ "$${RESP}" = "OK" ]; then
           date +%s > /tmp/last_ok
-          echo "DuckDNS actualizado correctamente al arranque: ${IP}"
+          echo "DuckDNS actualizado correctamente al arranque: $${IP}"
         else
-          echo "DuckDNS devolvio respuesta inesperada: ${RESP}" >&2
+          echo "DuckDNS devolvio respuesta inesperada: $${RESP}" >&2
           exit 1
         fi
         echo "duckdns-updater en modo inactivo"
