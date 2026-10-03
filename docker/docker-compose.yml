@@ -256,6 +256,18 @@ services:
       - net.ipv4.conf.all.src_valid_mark=1
     restart: unless-stopped
 
+  # ----------------------------------------------------------
+  #  cv-manager-bcn
+  #  App web (React + nginx) para gestion de CVs y candidaturas
+  #  Interfaz web: http://localhost:8084
+  # ----------------------------------------------------------
+  cv-manager-bcn:
+    build: ./cv-manager-bcn
+    container_name: cv-manager-bcn
+    restart: unless-stopped
+    ports:
+      - "${CV_MANAGER_PORT:-8084}:80"
+
   navegador:
     image: m1k1o/neko:firefox
     container_name: navegador_vpn

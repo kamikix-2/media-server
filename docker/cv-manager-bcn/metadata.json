@@ -1,0 +1,6 @@
+{
+  "name": "CV Manager Pro Barcelona - Gestor de Candidaturas y Empleo",
+  "description": "Plataforma integral para gestionar candidaturas de empleo, generar CVs profesionales adaptables en PDF y unificar ofertas de InfoJobs, LinkedIn, Indeed y Barcelona Activa.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
