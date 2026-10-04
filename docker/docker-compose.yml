@@ -266,7 +266,7 @@ services:
     container_name: cv-manager-bcn
     restart: unless-stopped
     ports:
-      - "${CV_MANAGER_PORT:-8084}:80"
+      - "${CV_MANAGER_PORT:-8084}:8084"
 
   navegador:
     image: m1k1o/neko:firefox
