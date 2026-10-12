@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f3f5f2" />
+    <title>Kamikix | Aplicaciones</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", sans-serif;
+        color: #17231f;
+        background: #f3f5f2;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        --ink: #17231f;
+        --muted: #66736d;
+        --line: #d8dfda;
+        --surface: #ffffff;
+        --green: #176b52;
+        --rust: #a84d36;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        height: 100vh;
+        height: 100dvh;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr);
+      }
+
+      .topbar {
+        min-height: 76px;
+        display: flex;
+        align-items: center;
+        gap: 28px;
+        padding: 12px 24px;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 220px;
+      }
+
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        display: grid;
+        place-items: center;
+        border-radius: 4px;
+        background: var(--ink);
+        color: #fff;
+        font-family: Georgia, serif;
+        font-size: 20px;
+      }
+
+      .brand-name {
+        display: block;
+        font-family: Georgia, serif;
+        font-size: 18px;
+        line-height: 1.15;
+      }
+
+      .brand-label {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .tabs {
+        align-self: stretch;
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+      }
+
+      .tab {
+        position: relative;
+        min-width: 132px;
+        padding: 0 16px;
+        border: 0;
+        border-radius: 3px;
+        color: #53615a;
+        background: transparent;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .tab:hover { background: #f3f5f2; color: var(--ink); }
+
+      .tab[aria-selected="true"] {
+        color: var(--green);
+        background: #edf4f0;
+        font-weight: 600;
+      }
+
+      .tab[aria-selected="true"]::after {
+        position: absolute;
+        right: 12px;
+        bottom: -12px;
+        left: 12px;
+        height: 2px;
+        background: var(--green);
+        content: "";
+      }
+
+      .open-link {
+        margin-left: auto;
+        color: var(--rust);
+        font-size: 13px;
+        font-weight: 600;
+        text-decoration-thickness: 1px;
+        text-underline-offset: 4px;
+        white-space: nowrap;
+      }
+
+      main { min-height: 0; padding: 14px; }
+
+      .workspace {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--surface);
+      }
+
+      iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: var(--surface);
+      }
+
+      @media (max-width: 680px) {
+        .topbar { min-height: 0; flex-wrap: wrap; gap: 10px 16px; padding: 12px 14px 0; }
+        .brand { min-width: 0; flex: 1; }
+        .tabs { order: 3; width: 100%; height: 46px; }
+        .tab { flex: 1; min-width: 0; padding: 0 8px; font-size: 13px; }
+        .tab[aria-selected="true"]::after { bottom: 0; }
+        .open-link { margin-left: 0; }
+        main { padding: 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand" aria-label="Kamikix aplicaciones">
+        <div class="brand-mark" aria-hidden="true">K</div>
+        <div>
+          <span class="brand-name">Kamikix</span>
+          <span class="brand-label">Espacio de trabajo</span>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist" aria-label="Aplicaciones">
+        <button class="tab" id="tab-cv" type="button" role="tab" aria-selected="true" aria-controls="app-frame" data-app="cv">CV Manager BCN</button>
+        <button class="tab" id="tab-portatiles" type="button" role="tab" aria-selected="false" aria-controls="app-frame" data-app="portatiles" tabindex="-1">Portatiles Manager</button>
+      </nav>
+      <a class="open-link" id="open-app" href="/cv/" target="_blank" rel="noopener">Abrir aparte</a>
+    </header>
+    <main>
+      <div class="workspace">
+        <iframe id="app-frame" title="CV Manager BCN" src="/cv/" allow="clipboard-read; clipboard-write"></iframe>
+      </div>
+    </main>
+    <script>
+      const applications = {
+        cv: { title: 'CV Manager BCN', path: '/cv/' },
+        portatiles: { title: 'Portatiles Manager', path: '/portatiles/' }
+      };
+      const tabs = [...document.querySelectorAll('[role="tab"]')];
+      const frame = document.getElementById('app-frame');
+      const openLink = document.getElementById('open-app');
+
+      function selectApplication(name, updateHash = true) {
+        const application = applications[name] || applications.cv;
+        frame.src = application.path;
+        frame.title = application.title;
+        openLink.href = application.path;
+
+        for (const tab of tabs) {
+          const selected = tab.dataset.app === name;
+          tab.setAttribute('aria-selected', String(selected));
+          tab.tabIndex = selected ? 0 : -1;
+        }
+
+        if (updateHash) history.replaceState(null, '', `#${name}`);
+      }
+
+      for (const tab of tabs) {
+        tab.addEventListener('click', () => selectApplication(tab.dataset.app));
+        tab.addEventListener('keydown', (event) => {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+          event.preventDefault();
+          const currentIndex = tabs.indexOf(tab);
+          const direction = event.key === 'ArrowRight' ? 1 : -1;
+          const nextTab = tabs[(currentIndex + direction + tabs.length) % tabs.length];
+          nextTab.focus();
+          selectApplication(nextTab.dataset.app);
+        });
+      }
+
+      selectApplication(location.hash.slice(1), false);
+    </script>
+  </body>
+</html>

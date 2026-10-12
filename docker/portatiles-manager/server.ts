@@ -610,9 +610,14 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static(path.join(__dirname, 'dist')));
+    const distDirectory = path.join(__dirname, 'dist');
+    app.use('/portatiles', express.static(distDirectory));
+    app.get(['/portatiles', '/portatiles/*'], (_req: Request, res: Response) => {
+      res.sendFile(path.join(distDirectory, 'index.html'));
+    });
+    app.use(express.static(distDirectory));
     app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+      res.sendFile(path.join(distDirectory, 'index.html'));
     });
   }
 

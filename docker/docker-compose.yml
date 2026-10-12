@@ -54,6 +54,8 @@ services:
     depends_on:
       duckdns-updater:
         condition: service_healthy
+      apps-gateway:
+        condition: service_started
     cap_add:
       - NET_ADMIN
     ports:
@@ -283,6 +285,21 @@ services:
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     ports:
       - "${PORTATILES_MANAGER_PORT:-8085}:3000"
+
+  # ----------------------------------------------------------
+  #  apps-gateway
+  #  Portal Nginx para CV Manager y Portatiles Manager
+  #  Interfaz web: http://localhost:8086
+  # ----------------------------------------------------------
+  apps-gateway:
+    build: ./apps-gateway
+    container_name: apps-gateway
+    restart: unless-stopped
+    depends_on:
+      - cv-manager-bcn
+      - portatiles-manager
+    ports:
+      - "${APPS_GATEWAY_PORT:-8086}:80"
 
   navegador:
     image: m1k1o/neko:firefox

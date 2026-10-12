@@ -21,6 +21,9 @@ Servicios incluidos en [docker/docker-compose.yml](docker/docker-compose.yml):
 - `immich-postgres`: base de datos PostgreSQL con `pgvecto-rs`.
 - `wireguard`: servidor VPN.
 - `navegador`: navegador Chrome (Kasm) con `network_mode: service:wireguard`.
+- `cv-manager-bcn`: gestor de CVs y candidaturas.
+- `portatiles-manager`: comparador de portatiles y precios.
+- `apps-gateway`: portal Nginx que incrusta ambas aplicaciones.
 
 ## Caracteristicas principales
 
@@ -31,6 +34,7 @@ Servicios incluidos en [docker/docker-compose.yml](docker/docker-compose.yml):
   - [docker/swag/nginx/proxy-confs/calibre-web.subdomain.conf](docker/swag/nginx/proxy-confs/calibre-web.subdomain.conf)
   - [docker/swag/nginx/proxy-confs/immich-server.subdomain.conf](docker/swag/nginx/proxy-confs/immich-server.subdomain.conf)
   - [docker/swag/nginx/proxy-confs/navegador-vpn.subdomain.conf](docker/swag/nginx/proxy-confs/navegador-vpn.subdomain.conf)
+  - [docker/swag/nginx/proxy-confs/cv-manager-bcn.subdomain.conf](docker/swag/nginx/proxy-confs/cv-manager-bcn.subdomain.conf): `kamikix-web.duckdns.org` hacia el portal de aplicaciones.
 - Sincronizacion rclone con estrategia robusta:
   - Primera ejecucion con `--resync`.
   - Ejecuciones periodicas (`SYNC_INTERVAL`).
@@ -52,6 +56,12 @@ media-server/
   docker/
     .env
     docker-compose.yml
+    apps-gateway/
+      Dockerfile
+      index.html
+      nginx.conf
+    cv-manager-bcn/
+    portatiles-manager/
     rclone/
       rclone.conf
       sync.sh
@@ -62,6 +72,7 @@ media-server/
           immich-server.subdomain.conf
           jellyfin.subdomain.conf
           navegador-vpn.subdomain.conf
+          cv-manager-bcn.subdomain.conf
 ```
 
 ## Requisitos
@@ -174,12 +185,16 @@ Locales:
 - Calibre Web: `http://HOST:8083`
 - Immich: `http://HOST:2283`
 - Navegador Kasm (via WireGuard): `http://HOST:6901`
+- Portal de aplicaciones: `http://HOST:8086`
+- CV Manager directo: `http://HOST:8084`
+- Portatiles Manager directo: `http://HOST:8085`
 
 Externos (HTTPS por SWAG, segun proxy-confs):
 - Jellyfin: `https://kamikix.duckdns.org`
 - Calibre Web: `https://kamikix-calibre.duckdns.org`
 - Immich: `https://kamikix-fotos.duckdns.org`
 - Navegador VPN: `https://kamikix-vpn.duckdns.org`
+- Portal con CV Manager y Portatiles Manager: `https://kamikix-web.duckdns.org`
 
 ## Variables importantes
 
@@ -191,6 +206,8 @@ Archivo: [docker/.env](docker/.env)
 - `SYNC_INTERVAL`: intervalo de sincronizacion en segundos.
 - `PELIS_DIR`, `MUSICA_DIR`, `FOTOS_DIR`, `CALIBRE_DIR`: rutas locales de contenido.
 - `IMMICH_DB_PASSWORD`: password de PostgreSQL para Immich.
+- `APPS_GATEWAY_PORT`, `CV_MANAGER_PORT` y `PORTATILES_MANAGER_PORT`: puertos locales de las aplicaciones.
+- `GEMINI_API_KEY`: clave opcional para la busqueda en vivo de Portatiles Manager.
 - `SWAG_*` y `DUCKDNS_TOKEN`: parametros de certificados y dominio.
 - `WIREGUARD_*`: configuracion VPN.
 
