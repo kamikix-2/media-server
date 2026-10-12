@@ -268,6 +268,22 @@ services:
     ports:
       - "${CV_MANAGER_PORT:-8084}:8084"
 
+  # ----------------------------------------------------------
+  #  portatiles-manager
+  #  App web (React + Express) para comparar portatiles y precios
+  #  Interfaz web: http://localhost:8085
+  # ----------------------------------------------------------
+  portatiles-manager:
+    build: ./portatiles-manager
+    container_name: portatiles-manager
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    ports:
+      - "${PORTATILES_MANAGER_PORT:-8085}:3000"
+
   navegador:
     image: m1k1o/neko:firefox
     container_name: navegador_vpn

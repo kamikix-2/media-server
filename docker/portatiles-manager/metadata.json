@@ -1,0 +1,6 @@
+{
+  "name": "VoltPrice Laptops",
+  "description": "Comparador de ofertas de portátiles en tiendas online con alertas de bajadas de precio, historial detallado de costes y sincronización en la nube.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
