@@ -2,7 +2,7 @@
  * Image Optimizer Utility
  * Automatically compresses and resizes photos to optimal dimensions for CV avatars.
  * Reduces 5-10MB camera photos down to ~25-45KB WebP/JPEG with zero loss in visual quality.
- * Prevents localStorage and IndexedDB bloat.
+ * Reduces image payload size before profiles are stored on the server.
  */
 
 export async function optimizeImage(

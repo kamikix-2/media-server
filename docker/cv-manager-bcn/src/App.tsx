@@ -14,17 +14,21 @@ import { ProfileSwitcherModal } from './components/profile/ProfileSwitcherModal'
 import { StorageBackupModal } from './components/storage/StorageBackupModal';
 import {
   loadStoredProfiles,
-  loadProfilesFromIndexedDB,
-  saveStoredProfiles,
   loadActiveProfileId,
-  saveActiveProfileId,
   loadStoredCandidaturas,
-  loadCandidaturasFromIndexedDB,
-  saveStoredCandidaturas,
   loadStoredOffers,
-  loadOffersFromIndexedDB,
-  saveStoredOffers,
+  loadLegacyAppState,
+  mergeLegacyAppState,
+  clearLegacyStorage,
 } from './utils/storage';
+import {
+  ApiError,
+  authenticate,
+  fetchAppState,
+  initializeAppState,
+  saveAppState,
+  AuthCredentials,
+} from './utils/api';
 import {
   defaultCVProfile,
   defaultDesignSettings,
@@ -32,7 +36,7 @@ import {
   noemiDesignSettings,
 } from './data/initialData';
 import { Candidatura, CVProfile, CVDesignSettings, JobOffer, UserProfileAccount } from './types';
-import { CheckCircle2, Sparkles } from 'lucide-react';
+import { CheckCircle2, Database, RefreshCw, Sparkles } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'candidaturas' | 'cv-generator' | 'jobs'>('candidaturas');
@@ -51,6 +55,15 @@ export default function App() {
   // Candidaturas and Offers
   const [candidaturas, setCandidaturas] = useState<Candidatura[]>(loadStoredCandidaturas);
   const [offers, setOffers] = useState<JobOffer[]>(loadStoredOffers);
+  const [credentials, setCredentials] = useState<AuthCredentials | null>(null);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [isStateLoaded, setIsStateLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Modals state
   const [isNewCandidaturaModalOpen, setIsNewCandidaturaModalOpen] = useState(false);
@@ -59,30 +72,54 @@ export default function App() {
   const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  // Background IndexedDB sync: ensures gigabyte-scale storage without 5MB quota errors
   useEffect(() => {
-    async function syncFromIndexedDB() {
+    if (!credentials) return;
+    const activeCredentials = credentials;
+    let cancelled = false;
+
+    async function loadFromPostgres() {
+      setLoadError(null);
       try {
-        const [dbProfiles, dbCandidaturas, dbOffers] = await Promise.all([
-          loadProfilesFromIndexedDB(),
-          loadCandidaturasFromIndexedDB(),
-          loadOffersFromIndexedDB(),
-        ]);
-        if (dbProfiles && dbProfiles.length > 0) {
-          setProfiles(dbProfiles);
+        const legacyState = await loadLegacyAppState();
+        const remoteState = await fetchAppState(activeCredentials);
+        let storedState = remoteState;
+        if (!storedState) {
+          storedState = await initializeAppState(activeCredentials, legacyState.state);
+        } else if (legacyState.hasBrowserData) {
+          const mergedState = mergeLegacyAppState(storedState, legacyState.state);
+          if (
+            mergedState.profiles.length !== storedState.profiles.length ||
+            mergedState.candidaturas.length !== storedState.candidaturas.length ||
+            mergedState.offers.length !== storedState.offers.length
+          ) {
+            await saveAppState(activeCredentials, mergedState);
+          }
+          storedState = mergedState;
         }
-        if (dbCandidaturas && dbCandidaturas.length > 0) {
-          setCandidaturas(dbCandidaturas);
-        }
-        if (dbOffers && dbOffers.length > 0) {
-          setOffers(dbOffers);
-        }
+        if (cancelled) return;
+
+        setProfiles(storedState.profiles);
+        setActiveProfileId(storedState.activeProfileId);
+        setCandidaturas(storedState.candidaturas);
+        setOffers(storedState.offers);
+        await clearLegacyStorage();
+        if (!cancelled) setIsStateLoaded(true);
       } catch (err) {
-        console.warn('Notice syncing with IndexedDB on mount:', err);
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 401) {
+          setCredentials(null);
+          setAuthError('La sesión no es válida. Vuelve a iniciar sesión.');
+          return;
+        }
+        setLoadError(err instanceof Error ? err.message : 'No se pudo cargar la base de datos.');
       }
     }
-    syncFromIndexedDB();
-  }, []);
+
+    loadFromPostgres();
+    return () => {
+      cancelled = true;
+    };
+  }, [credentials, loadAttempt]);
 
   // When activeProfileId changes, sync the working CV and settings
   useEffect(() => {
@@ -91,30 +128,49 @@ export default function App() {
       setProfile(found.cv);
       setSettings(found.designSettings);
     }
-  }, [activeProfileId]);
-
-  // Persist profiles whenever profiles state updates
-  useEffect(() => {
-    saveStoredProfiles(profiles);
-  }, [profiles]);
+  }, [activeProfileId, profiles]);
 
   useEffect(() => {
-    saveActiveProfileId(activeProfileId);
-  }, [activeProfileId]);
+    if (!credentials || !isStateLoaded) return;
+    void saveAppState(credentials, { profiles, activeProfileId, candidaturas, offers })
+      .then(() => setSaveError(null))
+      .catch((err: unknown) => {
+        console.error('Could not save application state to PostgreSQL:', err);
+        setSaveError('No se pudieron guardar los cambios en PostgreSQL. Reintenta el guardado.');
+      });
+  }, [credentials, isStateLoaded, profiles, activeProfileId, candidaturas, offers]);
 
-  useEffect(() => {
-    saveStoredCandidaturas(candidaturas);
-  }, [candidaturas]);
-
-  useEffect(() => {
-    saveStoredOffers(offers);
-  }, [offers]);
+  const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsAuthenticating(true);
+    setAuthError(null);
+    const enteredCredentials = { username, password };
+    try {
+      await authenticate(enteredCredentials);
+      setCredentials(enteredCredentials);
+      setPassword('');
+    } catch {
+      setAuthError('Usuario o contraseña incorrectos, o el servidor no está disponible.');
+    } finally {
+      setIsAuthenticating(false);
+    }
+  };
 
   const showNotification = (msg: string) => {
     setNotification(msg);
     setTimeout(() => {
       setNotification(null);
     }, 4000);
+  };
+
+  const handleRetrySave = async () => {
+    if (!credentials) return;
+    try {
+      await saveAppState(credentials, { profiles, activeProfileId, candidaturas, offers });
+      setSaveError(null);
+    } catch {
+      setSaveError('No se pudieron guardar los cambios en PostgreSQL. Reintenta el guardado.');
+    }
   };
 
   // Switch Active Profile handler
@@ -279,8 +335,88 @@ export default function App() {
     }
   };
 
+  if (!credentials) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <form onSubmit={handleLogin} className="w-full max-w-sm bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-md bg-sky-100 text-sky-700 flex items-center justify-center">
+              <Database className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-slate-900">CV Manager BCN</h1>
+              <p className="text-sm text-slate-500">Acceso protegido</p>
+            </div>
+          </div>
+          <label className="block text-sm font-medium text-slate-700">
+            Usuario
+            <input
+              required
+              autoComplete="username"
+              value={username}
+              onChange={(event) => setUsername(event.target.value)}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+            />
+          </label>
+          <label className="block text-sm font-medium text-slate-700">
+            Contraseña
+            <input
+              required
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100"
+            />
+          </label>
+          {authError && <p role="alert" className="text-sm text-rose-700">{authError}</p>}
+          <button
+            type="submit"
+            disabled={isAuthenticating}
+            className="w-full rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+          >
+            {isAuthenticating ? 'Verificando...' : 'Iniciar sesión'}
+          </button>
+        </form>
+      </main>
+    );
+  }
+
+  if (!isStateLoaded) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 text-center shadow-sm">
+          <Database className="mx-auto mb-3 h-8 w-8 text-sky-700" />
+          <h1 className="font-semibold text-slate-900">Conectando con PostgreSQL</h1>
+          {loadError ? (
+            <>
+              <p role="alert" className="mt-2 text-sm text-rose-700">{loadError}</p>
+              <button
+                type="button"
+                onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+                className="mt-4 inline-flex items-center gap-2 rounded-md bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+              >
+                <RefreshCw className="h-4 w-4" /> Reintentar
+              </button>
+            </>
+          ) : (
+            <p className="mt-2 text-sm text-slate-500">Cargando los datos guardados...</p>
+          )}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+      {saveError && (
+        <div role="alert" className="fixed bottom-4 left-4 z-50 flex max-w-lg items-center gap-3 rounded-md border border-rose-300 bg-white p-3 text-sm text-rose-800 shadow-lg">
+          <span>{saveError}</span>
+          <button type="button" onClick={handleRetrySave} className="shrink-0 font-semibold underline">
+            Reintentar
+          </button>
+        </div>
+      )}
       {/* Top Navbar adhering to Top Bar Contract */}
       <Navbar
         activeTab={activeTab}
@@ -386,7 +522,7 @@ export default function App() {
         onOpenStorageModal={() => setIsStorageModalOpen(true)}
       />
 
-      {/* Global Storage & Backup Modal (100% Free, IndexedDB & JSON backup) */}
+      {/* Global Storage & Backup Modal */}
       <StorageBackupModal
         isOpen={isStorageModalOpen}
         onClose={() => setIsStorageModalOpen(false)}

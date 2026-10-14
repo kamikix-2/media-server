@@ -106,7 +106,19 @@ git clone https://github.com/kamikix-2/media-server.git /opt/media-server
 - DuckDNS (`SWAG_SUBDOMAIN`, `DUCKDNS_TOKEN`)
 - SSL (`SWAG_EMAIL`, `SWAG_VALIDATION`, `SWAG_CERTPROVIDER`)
 - Immich (`IMMICH_DB_PASSWORD`)
+- CV Manager (`CV_MANAGER_USERNAME`, `CV_MANAGER_PASSWORD`); define unique credentials and keep them only in `docker/.env`.
 - WireGuard (`WIREGUARD_*`)
+
+Add the CV Manager credentials to `docker/.env`; Compose refuses to start the service if either is missing:
+
+```dotenv
+CV_MANAGER_USERNAME=your_private_username
+CV_MANAGER_PASSWORD=replace_with_a_long_unique_password
+```
+
+Use the app through the HTTPS SWAG domain. The app asks for these credentials again after a page reload; it does not persist them in browser storage.
+
+CV Manager stores its shared state in the `cv_manager_state` table inside Immich's `immich` PostgreSQL database. On the first authenticated visit, existing browser data is migrated; records from other browsers are merged by ID without replacing records already in PostgreSQL. The old browser database is removed after the server confirms the migration.
 
 4. Crear carpetas de datos si no existen:
 

@@ -267,8 +267,21 @@ services:
     build: ./cv-manager-bcn
     container_name: cv-manager-bcn
     restart: unless-stopped
+    depends_on:
+      immich-postgres:
+        condition: service_healthy
     ports:
-      - "${CV_MANAGER_PORT:-8084}:8084"
+      - "127.0.0.1:${CV_MANAGER_PORT:-8084}:8084"
+    environment:
+      - NODE_ENV=production
+      - PORT=8084
+      - PGHOST=immich-postgres
+      - PGPORT=5432
+      - PGUSER=immich
+      - PGPASSWORD=${IMMICH_DB_PASSWORD:-immich_password}
+      - PGDATABASE=immich
+      - CV_MANAGER_USERNAME=${CV_MANAGER_USERNAME:?Define CV_MANAGER_USERNAME in docker/.env}
+      - CV_MANAGER_PASSWORD=${CV_MANAGER_PASSWORD:?Define CV_MANAGER_PASSWORD in docker/.env}
 
   # ----------------------------------------------------------
   #  portatiles-manager

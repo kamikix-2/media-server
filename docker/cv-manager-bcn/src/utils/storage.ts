@@ -7,15 +7,22 @@ import {
   initialJobOffers,
   initialProfiles,
 } from '../data/initialData';
-import { idbGet, idbSet, isIndexedDBSupported } from './indexedDB';
+import { idbClear, idbDeleteDatabase, idbGet, isIndexedDBSupported } from './indexedDB';
 import { optimizeImage } from './imageOptimizer';
+import type { AppState } from './api';
 
 export const PROFILES_STORAGE_KEY = 'cv_manager_profiles_v3';
 export const ACTIVE_PROFILE_ID_KEY = 'cv_manager_active_profile_id_v3';
 export const CANDIDATURAS_STORAGE_KEY = 'cv_manager_candidaturas_v3';
 export const OFFERS_STORAGE_KEY = 'cv_manager_offers_v3';
+const LEGACY_MIGRATION_KEY = 'cv_manager_postgres_migrated_v1';
 
-// Remove legacy v2 keys to immediately recover up to 5MB of browser space
+export interface LegacyAppState {
+  state: AppState;
+  hasBrowserData: boolean;
+}
+
+// Remove obsolete keys from previous browser-storage versions.
 export function cleanObsoleteStorage(): void {
   try {
     const obsoleteKeys = [
@@ -40,7 +47,7 @@ export function cleanObsoleteStorage(): void {
 cleanObsoleteStorage();
 
 /**
- * Synchronous initial load of Profiles from localStorage with fallback to initialProfiles.
+ * Reads old browser data only as a fallback for the PostgreSQL migration.
  */
 export function loadStoredProfiles(): UserProfileAccount[] {
   try {
@@ -62,10 +69,7 @@ export function loadStoredProfiles(): UserProfileAccount[] {
   return initialProfiles;
 }
 
-/**
- * Asynchronously checks IndexedDB for the most up-to-date and complete profiles.
- * IndexedDB has gigabytes of storage and avoids the 5MB localStorage quota limit.
- */
+/** Reads profile data written by the old browser database for migration. */
 export async function loadProfilesFromIndexedDB(): Promise<UserProfileAccount[] | null> {
   try {
     if (!isIndexedDBSupported()) return null;
@@ -82,50 +86,6 @@ export async function loadProfilesFromIndexedDB(): Promise<UserProfileAccount[] 
   return null;
 }
 
-/**
- * Saves profiles into both IndexedDB (unlimited, 100% free) and localStorage cache.
- * If localStorage hits the 5MB browser quota, IndexedDB guarantees no data is lost.
- */
-export function saveStoredProfiles(profiles: UserProfileAccount[]): void {
-  // 1. Primary permanent store: IndexedDB (Unlimited, 0€, native)
-  idbSet(PROFILES_STORAGE_KEY, profiles).catch((err) => {
-    console.warn('IndexedDB write warning:', err);
-  });
-
-  // 2. Fast synchronous cache: LocalStorage
-  try {
-    localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles));
-  } catch (e) {
-    console.warn(
-      'LocalStorage 5MB quota reached. Data is safely preserved in IndexedDB database without quota limits.',
-      e
-    );
-    // Attempt emergency cleanup of old keys to see if cache can be saved
-    cleanObsoleteStorage();
-    try {
-      // Create a lightweight cache version where huge base64 strings (>100KB) are truncated or replaced
-      const lightweight = profiles.map((p) => ({
-        ...p,
-        avatarUrl: p.avatarUrl?.startsWith('data:image/') && p.avatarUrl.length > 100000
-          ? '' // Strip huge raw base64 from localStorage cache (retained in IndexedDB)
-          : p.avatarUrl,
-        cv: {
-          ...p.cv,
-          personal: {
-            ...p.cv.personal,
-            photoUrl: p.cv.personal.photoUrl?.startsWith('data:image/') && p.cv.personal.photoUrl.length > 100000
-              ? ''
-              : p.cv.personal.photoUrl,
-          },
-        },
-      }));
-      localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(lightweight));
-    } catch {
-      // If even lightweight fails, IndexedDB already holds the full data
-    }
-  }
-}
-
 export function loadActiveProfileId(): string {
   try {
     const id = localStorage.getItem(ACTIVE_PROFILE_ID_KEY);
@@ -136,15 +96,6 @@ export function loadActiveProfileId(): string {
     console.warn('Notice loading active profile ID:', e);
   }
   return 'profile-david';
-}
-
-export function saveActiveProfileId(id: string): void {
-  idbSet(ACTIVE_PROFILE_ID_KEY, id).catch(() => {});
-  try {
-    localStorage.setItem(ACTIVE_PROFILE_ID_KEY, id);
-  } catch (e) {
-    console.warn('Notice saving active profile ID:', e);
-  }
 }
 
 /**
@@ -217,16 +168,6 @@ export async function loadCandidaturasFromIndexedDB(): Promise<Candidatura[] | n
   return null;
 }
 
-export function saveStoredCandidaturas(candidaturas: Candidatura[]): void {
-  const sanitized = sanitizeCandidaturas(candidaturas);
-  idbSet(CANDIDATURAS_STORAGE_KEY, sanitized).catch(() => {});
-  try {
-    localStorage.setItem(CANDIDATURAS_STORAGE_KEY, JSON.stringify(sanitized));
-  } catch (e) {
-    console.warn('LocalStorage quota on candidaturas, safely preserved in IndexedDB.', e);
-  }
-}
-
 export function loadStoredOffers(): JobOffer[] {
   try {
     const data = localStorage.getItem(OFFERS_STORAGE_KEY);
@@ -275,13 +216,77 @@ export async function loadOffersFromIndexedDB(): Promise<JobOffer[] | null> {
   return null;
 }
 
-export function saveStoredOffers(offers: JobOffer[]): void {
-  idbSet(OFFERS_STORAGE_KEY, offers).catch(() => {});
-  try {
-    localStorage.setItem(OFFERS_STORAGE_KEY, JSON.stringify(offers));
-  } catch (e) {
-    console.warn('LocalStorage quota on offers, safely preserved in IndexedDB.', e);
+export async function loadLegacyAppState(): Promise<LegacyAppState> {
+  const localState: AppState = {
+    profiles: loadStoredProfiles(),
+    activeProfileId: loadActiveProfileId(),
+    candidaturas: loadStoredCandidaturas(),
+    offers: loadStoredOffers(),
+  };
+
+  if (localStorage.getItem(LEGACY_MIGRATION_KEY) === '1') {
+    return { state: localState, hasBrowserData: false };
   }
+
+  const hasLocalData = [
+    PROFILES_STORAGE_KEY,
+    ACTIVE_PROFILE_ID_KEY,
+    CANDIDATURAS_STORAGE_KEY,
+    OFFERS_STORAGE_KEY,
+  ].some((key) => localStorage.getItem(key) !== null);
+
+  const [profiles, candidaturas, offers, activeProfileId] = await Promise.all([
+    loadProfilesFromIndexedDB(),
+    loadCandidaturasFromIndexedDB(),
+    loadOffersFromIndexedDB(),
+    idbGet<string>(ACTIVE_PROFILE_ID_KEY),
+  ]);
+
+  return {
+    state: {
+      profiles: profiles?.length ? profiles : localState.profiles,
+      activeProfileId: activeProfileId || localState.activeProfileId,
+      candidaturas: candidaturas?.length ? candidaturas : localState.candidaturas,
+      offers: offers?.length ? offers : localState.offers,
+    },
+    hasBrowserData: hasLocalData || Boolean(
+      profiles?.length || candidaturas?.length || offers?.length || activeProfileId
+    ),
+  };
+}
+
+export function mergeLegacyAppState(current: AppState, legacy: AppState): AppState {
+  const mergeById = <T extends { id: string }>(primary: T[], secondary: T[]): T[] => {
+    const records = new Map(primary.map((record) => [record.id, record]));
+    secondary.forEach((record) => {
+      if (!records.has(record.id)) records.set(record.id, record);
+    });
+    return Array.from(records.values());
+  };
+
+  return {
+    profiles: mergeById(current.profiles, legacy.profiles),
+    activeProfileId: current.activeProfileId,
+    candidaturas: mergeById(current.candidaturas, legacy.candidaturas),
+    offers: mergeById(current.offers, legacy.offers),
+  };
+}
+
+export async function clearLegacyStorage(): Promise<void> {
+  try {
+    await idbClear();
+    await idbDeleteDatabase();
+  } catch (error) {
+    console.warn('Could not remove legacy IndexedDB data:', error);
+  }
+
+  [
+    PROFILES_STORAGE_KEY,
+    ACTIVE_PROFILE_ID_KEY,
+    CANDIDATURAS_STORAGE_KEY,
+    OFFERS_STORAGE_KEY,
+  ].forEach((key) => localStorage.removeItem(key));
+  localStorage.setItem(LEGACY_MIGRATION_KEY, '1');
 }
 
 /**

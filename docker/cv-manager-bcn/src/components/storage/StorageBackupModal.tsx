@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   X,
   Database,
@@ -6,26 +6,16 @@ import {
   Upload,
   Sparkles,
   CheckCircle2,
-  HardDrive,
   AlertTriangle,
   Info,
   ShieldCheck,
   RefreshCw,
-  FolderArchive,
-  CloudOff,
-  Cloud,
 } from 'lucide-react';
 import { UserProfileAccount, Candidatura, JobOffer } from '../../types';
 import {
   exportFullDatabaseJSON,
-  cleanObsoleteStorage,
   optimizeAllProfileImages,
-  saveStoredProfiles,
-  saveStoredCandidaturas,
-  saveStoredOffers,
-  saveActiveProfileId,
 } from '../../utils/storage';
-import { getStorageQuotaEstimate, StorageQuotaInfo } from '../../utils/indexedDB';
 
 interface Props {
   isOpen: boolean;
@@ -53,26 +43,10 @@ export const StorageBackupModal: React.FC<Props> = ({
   onRestoreData,
   onProfilesUpdated,
 }) => {
-  const [quotaInfo, setQuotaInfo] = useState<StorageQuotaInfo | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'info' | 'error'; text: string } | null>(null);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [activeFaq, setActiveFaq] = useState<string | null>('quota');
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      loadQuota();
-    }
-  }, [isOpen]);
-
-  const loadQuota = async () => {
-    try {
-      const estimate = await getStorageQuotaEstimate();
-      setQuotaInfo(estimate);
-    } catch {
-      // ignore
-    }
-  };
 
   if (!isOpen) return null;
 
@@ -108,12 +82,6 @@ export const StorageBackupModal: React.FC<Props> = ({
           const restoredOffers = Array.isArray(parsed.offers) ? parsed.offers : offers;
           const restoredActiveId = parsed.activeProfileId || restoredProfiles[0]?.id || activeProfileId;
 
-          // Save to IndexedDB and cache
-          saveStoredProfiles(restoredProfiles);
-          saveStoredCandidaturas(restoredCandidaturas);
-          saveStoredOffers(restoredOffers);
-          saveActiveProfileId(restoredActiveId);
-
           onRestoreData({
             profiles: restoredProfiles,
             candidaturas: restoredCandidaturas,
@@ -125,7 +93,6 @@ export const StorageBackupModal: React.FC<Props> = ({
             type: 'success',
             text: `¡Restauración completada! Se han cargado ${restoredProfiles.length} perfiles y ${restoredCandidaturas.length} candidaturas.`,
           });
-          loadQuota();
         } else {
           setStatusMessage({
             type: 'error',
@@ -153,10 +120,7 @@ export const StorageBackupModal: React.FC<Props> = ({
       });
 
       const { updatedProfiles, savedKB } = await optimizeAllProfileImages(profiles);
-      saveStoredProfiles(updatedProfiles);
       onProfilesUpdated(updatedProfiles);
-      cleanObsoleteStorage();
-      await loadQuota();
 
       setStatusMessage({
         type: 'success',
@@ -194,7 +158,7 @@ export const StorageBackupModal: React.FC<Props> = ({
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                Tus datos se guardan de forma local, segura y sin límites de cuota de pago
+                Tus datos se guardan en PostgreSQL en el servidor
               </p>
             </div>
           </div>
@@ -235,14 +199,14 @@ export const StorageBackupModal: React.FC<Props> = ({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-700/80 pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-300 flex items-center justify-center border border-sky-400/30">
-                  <HardDrive className="w-4 h-4" />
+                  <Database className="w-4 h-4" />
                 </div>
                 <div>
                   <span className="text-[11px] text-slate-300 uppercase tracking-wider block font-semibold">
                     Motor de Almacenamiento Activo
                   </span>
                   <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                    IndexedDB (Nativo de tu Navegador)
+                    PostgreSQL · immich
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   </span>
                 </div>
@@ -250,22 +214,22 @@ export const StorageBackupModal: React.FC<Props> = ({
 
               <div className="flex items-center gap-4 text-right">
                 <div>
-                  <span className="text-[10px] text-slate-400 block">Espacio Ocupado</span>
+                  <span className="text-[10px] text-slate-400 block">Estado actual</span>
                   <span className="text-sm font-bold text-sky-300 font-mono">
-                    {quotaInfo ? `${quotaInfo.usedMB} MB` : `${(profilesSizeKB / 1024).toFixed(2)} MB`}
+                    {profilesSizeKB} KB · {profiles.length} perfiles
                   </span>
                 </div>
                 <div className="border-l border-slate-700 pl-4">
-                  <span className="text-[10px] text-slate-400 block">Límite / Coste</span>
+                  <span className="text-[10px] text-slate-400 block">Datos guardados</span>
                   <span className="text-sm font-bold text-emerald-400">
-                    Ilimitado • 0 €
+                    {candidaturas.length} candidaturas · {offers.length} ofertas
                   </span>
                 </div>
               </div>
             </div>
 
             <p className="text-[11px] text-slate-300 leading-relaxed">
-              <strong>Solución permanente:</strong> Hemos activado <strong>IndexedDB</strong>, la base de datos nativa que viene integrada en tu navegador (Chrome, Edge, Safari, Firefox). A diferencia del almacenamiento básico <em>localStorage</em> (que limita a solo 5 MB), IndexedDB ofrece <strong>varios Gigabytes de capacidad gratuita</strong> y almacena todas tus fotos, perfiles y candidaturas sin costes de servidor ni bloqueos.
+              Perfiles, currículums, fotos, candidaturas y ofertas se guardan en la base PostgreSQL del servidor y se comparten entre los navegadores que inicien sesión.
             </p>
           </div>
 
@@ -330,7 +294,7 @@ export const StorageBackupModal: React.FC<Props> = ({
                 </div>
                 <h3 className="font-bold text-slate-900 text-xs">Optimizar Imágenes</h3>
                 <p className="text-[11px] text-slate-500 leading-snug">
-                  Reduce fotos grandes a ~35 KB con calidad impecable y limpia la memoria caché.
+                  Reduce el tamaño de las fotos almacenadas junto a los perfiles.
                 </p>
               </div>
               <button
@@ -360,25 +324,14 @@ export const StorageBackupModal: React.FC<Props> = ({
               >
                 <span className="flex items-center gap-2">
                   <Info className="w-4 h-4 text-sky-600 shrink-0" />
-                  ¿Qué significa el error "Setting the value exceeded the quota"?
+                  ¿Dónde se guardan mis datos?
                 </span>
                 <span className="text-slate-400 font-mono text-sm">{activeFaq === 'quota' ? '−' : '+'}</span>
               </button>
               {activeFaq === 'quota' && (
                 <div className="mt-2.5 text-[11.5px] text-slate-600 space-y-1.5 pl-6 border-l-2 border-sky-400">
                   <p>
-                    Los navegadores web tienen dos memorias internas:
-                  </p>
-                  <ul className="list-disc pl-4 space-y-1">
-                    <li>
-                      <strong>localStorage (Antigua):</strong> Tiene un límite rígido de solo <strong>5 MB</strong> para toda la web. Al añadir múltiples perfiles completos o subir fotos en alta resolución desde el móvil o cámara (que ocupan 3-8 MB cada una en formato texto base64), la memoria básica se llena y muestra el aviso de <em>"exceeded the quota"</em>.
-                    </li>
-                    <li>
-                      <strong>IndexedDB (Moderna y Activa):</strong> Es una auténtica base de datos local que soporta <strong>decenas de Gigabytes</strong> sin restricciones de cuota ni fallos.
-                    </li>
-                  </ul>
-                  <p className="text-slate-800 font-medium">
-                    ✓ Ya está corregido: todos tus perfiles ahora se guardan directamente en IndexedDB y tus fotos se comprimen de forma automática.
+                    La app guarda el estado completo en la tabla <code>cv_manager_state</code> de la base <code>immich</code> en PostgreSQL. El servidor mantiene una copia compartida; puedes descargar o restaurar una copia JSON desde aquí.
                   </p>
                 </div>
               )}
@@ -393,24 +346,21 @@ export const StorageBackupModal: React.FC<Props> = ({
               >
                 <span className="flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                  ¿Se puede almacenar en algún sitio sin que cueste dinero?
+                  ¿Cómo se protege el acceso?
                 </span>
                 <span className="text-slate-400 font-mono text-sm">{activeFaq === 'free' ? '−' : '+'}</span>
               </button>
               {activeFaq === 'free' && (
                 <div className="mt-2.5 text-[11.5px] text-slate-600 space-y-2 pl-6 border-l-2 border-emerald-400">
                   <p>
-                    <strong>¡Absolutamente SÍ! Existen 3 métodos 100% gratuitos (0 € de por vida):</strong>
+                    <strong>La app solicita credenciales propias antes de cargar o guardar datos.</strong>
                   </p>
                   <ol className="list-decimal pl-4 space-y-1.5">
                     <li>
-                      <strong>IndexedDB en tu navegador (Implementado ahora mismo):</strong> No cuesta ni un céntimo, no requiere crear cuentas ni introducir tarjetas, y almacena tus perfiles en tu disco duro con total privacidad.
+                      El usuario y la contraseña se configuran en el archivo de entorno del servidor, no en el código de la app.
                     </li>
                     <li>
-                      <strong>Descarga en archivo .JSON (Copia Local Gratuita):</strong> Con el botón de arriba puedes descargar el archivo con todos tus datos cuantas veces quieras y guardarlo gratis en tu carpeta personal, lápiz USB o tu Google Drive / OneDrive personal.
-                    </li>
-                    <li>
-                      <strong>Nube Gratuita (Firebase Spark Plan 0 €):</strong> Si en el futuro deseas que tus perfiles se sincronicen en tiempo real entre tu ordenador de casa y tu teléfono móvil, Google Firebase incluye un plan gratuito ("Spark") que ofrece 1 GB de base de datos Firestore y decenas de miles de lecturas/escrituras diarias sin coste.
+                      La conexión externa debe usarse por HTTPS; la contraseña no se conserva al cerrar o recargar la pestaña.
                     </li>
                   </ol>
                 </div>
@@ -423,7 +373,7 @@ export const StorageBackupModal: React.FC<Props> = ({
         <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
             <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-            <span>IndexedDB operativo • Base de datos local protegida</span>
+            <span>PostgreSQL conectado · Base de datos compartida</span>
           </div>
 
           <button

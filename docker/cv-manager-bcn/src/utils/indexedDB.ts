@@ -1,8 +1,4 @@
-/**
- * Zero-dependency IndexedDB Client
- * Provides gigabyte-scale, 100% free local storage in the user's browser.
- * Eliminates localStorage 5MB quota errors permanently.
- */
+/** Reads and removes browser data created by older CV Manager versions. */
 
 const DB_NAME = 'CVManagerBCN_DB';
 const DB_VERSION = 1;
@@ -68,43 +64,6 @@ export async function idbGet<T>(key: string): Promise<T | undefined> {
   }
 }
 
-export async function idbSet<T>(key: string, value: T): Promise<void> {
-  try {
-    const db = await openDatabase();
-    return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.put(value, key);
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
-  } catch (err) {
-    console.error(`IndexedDB set error for key "${key}":`, err);
-  }
-}
-
-export async function idbDelete(key: string): Promise<void> {
-  try {
-    const db = await openDatabase();
-    return new Promise<void>((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite');
-      const store = transaction.objectStore(STORE_NAME);
-      const request = store.delete(key);
-
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  } catch (err) {
-    console.error(`IndexedDB delete error for key "${key}":`, err);
-  }
-}
-
 export async function idbClear(): Promise<void> {
   try {
     const db = await openDatabase();
@@ -121,59 +80,17 @@ export async function idbClear(): Promise<void> {
   }
 }
 
-export interface StorageQuotaInfo {
-  supported: boolean;
-  usedMB: number;
-  quotaMB: number;
-  percentageUsed: number;
-  engine: 'IndexedDB (Nativo Ilimitado)' | 'LocalStorage (5MB)';
-}
+export async function idbDeleteDatabase(): Promise<void> {
+  if (!isIndexedDBSupported()) return;
 
-/**
- * Returns the estimated storage usage and total quota provided by the browser
- */
-export async function getStorageQuotaEstimate(): Promise<StorageQuotaInfo> {
-  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate) {
-    try {
-      const estimate = await navigator.storage.estimate();
-      const usedBytes = estimate.usage || 0;
-      const quotaBytes = estimate.quota || 1024 * 1024 * 1000; // fallback ~1GB
-      const usedMB = Number((usedBytes / (1024 * 1024)).toFixed(2));
-      const quotaMB = Number((quotaBytes / (1024 * 1024)).toFixed(2));
-      const percentageUsed = quotaBytes > 0 ? Number(((usedBytes / quotaBytes) * 100).toFixed(2)) : 0;
+  const db = await dbPromise?.catch(() => undefined);
+  db?.close();
+  dbPromise = null;
 
-      return {
-        supported: true,
-        usedMB,
-        quotaMB,
-        percentageUsed,
-        engine: 'IndexedDB (Nativo Ilimitado)',
-      };
-    } catch {
-      // Fallback
-    }
-  }
-
-  // Fallback estimation using localStorage
-  let totalLocalChars = 0;
-  try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k) {
-        totalLocalChars += k.length + (localStorage.getItem(k)?.length || 0);
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  const usedMB = Number(((totalLocalChars * 2) / (1024 * 1024)).toFixed(2));
-
-  return {
-    supported: isIndexedDBSupported(),
-    usedMB,
-    quotaMB: 5,
-    percentageUsed: Number(((usedMB / 5) * 100).toFixed(1)),
-    engine: isIndexedDBSupported() ? 'IndexedDB (Nativo Ilimitado)' : 'LocalStorage (5MB)',
-  };
+  await new Promise<void>((resolve, reject) => {
+    const request = window.indexedDB.deleteDatabase(DB_NAME);
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+    request.onblocked = () => reject(new Error('IndexedDB deletion was blocked.'));
+  });
 }

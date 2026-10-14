@@ -165,7 +165,7 @@ export const Navbar: React.FC<Props> = ({
           <button
             onClick={onOpenStorageModal}
             className="p-2 text-slate-500 hover:text-sky-700 hover:bg-sky-50 rounded-lg transition-colors border border-transparent hover:border-sky-200 flex items-center gap-1"
-            title="Almacenamiento Local Gratuito (IndexedDB 0€) & Copias de Seguridad"
+            title="Almacenamiento PostgreSQL y copias de seguridad"
           >
             <Database className="w-4 h-4" />
           </button>
