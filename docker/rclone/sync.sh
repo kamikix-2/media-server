@@ -116,12 +116,12 @@ run_bisync() {
     # --- FIN FOTOS --
 
 
-    # --- FOTOS 2 (ONEDRIVE2) ---
+    # --- FOTOS 2 (ONEDRIVE3) ---
     FLAG_FOTOS2="$CACHE_DIR/fotos2_initialized.flag"
     if [ ! -f "$FLAG_FOTOS2" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] Primera ejecucion - resync completo..."
         clear_bisync_locks
-        rclone bisync /data/fotos2 "onedrive2:/fotos" \
+        rclone bisync /data/fotos2 "onedrive3:/fotos" \
             --resync \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
@@ -131,14 +131,14 @@ run_bisync() {
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] Ejecutando bisync normal..."
         clear_bisync_locks
-        rclone bisync /data/fotos2 "onedrive2:/fotos" \
+        rclone bisync /data/fotos2 "onedrive3:/fotos" \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
             --verbose \
         || {
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Fotos2] Error - ejecutando resync de recuperacion..."
             rm -f "$FLAG_FOTOS2"
-            rclone bisync /data/fotos2 "onedrive2:/fotos" \
+            rclone bisync /data/fotos2 "onedrive3:/fotos" \
                 --resync \
                 --cache-dir "$CACHE_DIR" \
                 --config "$RCLONE_CONF" \
