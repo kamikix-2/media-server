@@ -15,7 +15,7 @@ clear_bisync_locks() {
     fi
 }
 
-# ---- Funcion principal de sincronizacion -------------------
+# ---- PELIS EN ONEDRIVE2 -------------------
 run_bisync() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ===== Iniciando sincronizacion ====="
 
@@ -24,7 +24,7 @@ run_bisync() {
     if [ ! -f "$FLAG_PELIS" ]; then
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Pelis] Primera ejecucion - resync completo..."
         clear_bisync_locks
-        rclone bisync /data/pelis "onedrive:/NUBE/Pelis" \
+        rclone bisync /data/pelis "onedrive2:/NUBE/Pelis" \
             --resync \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
@@ -34,14 +34,14 @@ run_bisync() {
     else
         echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Pelis] Ejecutando bisync normal..."
         clear_bisync_locks
-        rclone bisync /data/pelis "onedrive:/NUBE/Pelis" \
+        rclone bisync /data/pelis "onedrive2:/NUBE/Pelis" \
             --cache-dir "$CACHE_DIR" \
             --config "$RCLONE_CONF" \
             --verbose \
         || {
             echo "[$(date '+%Y-%m-%d %H:%M:%S')] [Pelis] Error - ejecutando resync de recuperacion..."
             rm -f "$FLAG_PELIS"
-            rclone bisync /data/pelis "onedrive:/NUBE/Pelis" \
+            rclone bisync /data/pelis "onedrive2:/NUBE/Pelis" \
                 --resync \
                 --cache-dir "$CACHE_DIR" \
                 --config "$RCLONE_CONF" \
